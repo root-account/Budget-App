@@ -154,13 +154,6 @@ class BudgetsController extends Controller
             });
 
 
-
-            // foreach ($expenses_grouped as $item) {
-                
-            // }
-
-            // print_r($result);
-
             $budget_details = array(
                 [
                     'income' => $income,
