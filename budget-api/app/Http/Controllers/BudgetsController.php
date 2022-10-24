@@ -28,9 +28,9 @@ class BudgetsController extends Controller
         $user_id = "ephraim_64";
 
         $budgets = DB::table('user_budgets')->insert([
-            'budget_id' => $budget_id, 
+            'budget_id' => $budget_id,
             'user_id' => $user_id,
-            'title' => $request->title, 
+            'title' => $request->title,
             'desc' => $request->desc,
             'budget_date' => $request->budget_date,
             'created_at' => now(),
@@ -55,7 +55,7 @@ class BudgetsController extends Controller
         }else{
             return response()->json("Budget with that ID does not exist.", 200);
         }
-        
+
     }
 
     // ADD BUDGET ITEM
@@ -67,34 +67,34 @@ class BudgetsController extends Controller
             $group_id = str_replace(' ','_',$group_title);
             $group_id = strtolower($group_id);
 
-            
+
 
             $budget_item = DB::table('budget_items')->insert([
-                'budget_id' => $request->budget_id, 
-                'title' => $request->title, 
+                'budget_id' => $request->budget_id,
+                'title' => $request->title,
                 'desc' => $request->desc,
                 'amount' => $request->amount,
                 'type' => $request->type,
                 'group_title' => $group_title,
-                'group_id' => $group_id,
+                // 'group_id' => $group_id,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-    
+
             if($budget_item){
                 return response()->json("Item added.", 200);
             }else{
-    
+
             }
         }else{
             return response()->json("Budget with that ID does not exist.", 200);
         }
-        
+
     }
 
     public function group_by($key, $data) {
         $result = array();
-    
+
         foreach($data as $val) {
             if(array_key_exists($key, $val)){
                 $result[$val[$key]][] = $val;
@@ -102,7 +102,7 @@ class BudgetsController extends Controller
                 $result[""][] = $val;
             }
         }
-    
+
         return $result;
     }
 
@@ -128,7 +128,7 @@ class BudgetsController extends Controller
             $amount_remaining = 0;
 
 
-            foreach ($budget_items as $item) {   
+            foreach ($budget_items as $item) {
                 if (strtolower($item->type) == "income") {
                     array_push($income, $item);
 
@@ -142,27 +142,40 @@ class BudgetsController extends Controller
             $amount_remaining = $income_total-$expenses_total;
             $expenses_grouped = $this->group_by("group_title", json_decode(json_encode($expenses), true) );
 
+            $expenses_grouped = DB::table('budget_items')
+                                ->select('budget_id','title','desc','type','amount','group_title','status','created_at','updated_at')
+                                ->where('budget_id', $budget_id)
+                                ->where('type', 'expense')
+                                ->get()
+                                ->groupBy('group_title');
+
+
+            // $grouped = $expenses_grouped->mapToGroups(function ($item, $key) {
+            //     return [$item['group_title'] => $item];
+            // });
+            $expenses_grouped =  json_decode(json_encode($expenses_grouped), true);
             $expenses_arr =  json_decode(json_encode($expenses), true);
 
-            $expenses_group_total = array_reduce($expenses_arr, function($carry, $item){ 
-                if(!isset($carry[$item['group_title']])){ 
-                    $carry[$item['group_title']] = ['group_title'=>$item['group_title'],'amount'=>$item['amount']]; 
-                } else { 
-                    $carry[$item['group_title']]['amount'] += $item['amount']; 
-                } 
-                return $carry; 
+            $expenses_group_total = array_reduce($expenses_arr, function($carry, $item){
+
+                if(!isset($carry[$item['group_title']])){
+                    $carry[$item['group_title']] = ['group_title'=>$item['group_title'],'amount'=>$item['amount']];
+                } else {
+                    $carry[$item['group_title']]['amount'] += $item['amount'];
+                }
+                return $carry;
             });
 
+            // print_r($expenses_grouped);
 
             $budget_details = array(
-                [
                     'income' => $income,
-                    'expenses' =>  $expenses_grouped,
-                    'expenses_group_total' => $expenses_group_total,
+                    'expenses_grouped' =>  array_values($expenses_grouped),
+                    'expenses' =>  $expenses,
+                    'expenses_group_total' => array_values($expenses_group_total),
                     'income_total' => $income_total,
                     'expenses_total' => $expenses_total,
                     'amount_remaining' => $amount_remaining,
-                ]
             );
 
             // return response()->json($budget_items_grouped, 200);
@@ -170,7 +183,7 @@ class BudgetsController extends Controller
         }else{
             return response()->json("Budget with that ID does not exist.", 200);
         }
-        
+
     }
 
 
